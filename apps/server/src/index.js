@@ -9,6 +9,17 @@ const allow = (process.env.CORS_ORIGIN || "")
   .filter(Boolean);
 
 const httpServer = createServer((req, res) => {
+  // Add CORS headers for all requests
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 200;
+    res.end();
+    return;
+  }
+  
   if (req.url === "/health") {
     res.statusCode = 200;
     res.end("ok");
@@ -19,7 +30,11 @@ const httpServer = createServer((req, res) => {
 });
 
 const io = new Server(httpServer, {
-  cors: { origin: allow.length ? allow : ["http://localhost:3000"] },
+  cors: { 
+    origin: allow.length ? allow : "*",
+    methods: ["GET", "POST"],
+    credentials: false
+  },
 });
 
 // Minimal in-memory snapshot per room
