@@ -55,6 +55,7 @@ io.on("connection", (socket) => {
         rate: 1,
         stampMs: now(),
         seq: 0,
+        videosHistory: [],
       });
     }
     socket.emit("SNAPSHOT", rooms.get(code));
