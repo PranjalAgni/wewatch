@@ -56,6 +56,7 @@ io.on("connection", (socket) => {
         stampMs: now(),
         seq: 0,
         videosHistory: [],
+        currentVideoTime: 0
       });
     }
     socket.emit("SNAPSHOT", rooms.get(code));
