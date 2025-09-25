@@ -82,22 +82,32 @@ export default function Player({
 
     function correct(target: number, tol = 0.3) {
       const cur = safeTime();
-      if (Math.abs(cur - target) > tol)
+      if (Math.abs(cur - target) > tol) {
+        console.log("Player correct seekTo", target);
         playerRef.current?.seekTo?.(target, true);
+      }
     }
 
     const onSnapshot = (st: any) => {
-      if (st.videoId) playerRef.current?.cueVideoById(st.videoId);
-      const pos = st.isPlaying
-        ? st.position + ((Date.now() - st.stampMs) / 1000) * (st.rate ?? 1)
-        : st.position;
-      correct(pos);
+      setTimeout(() => {
+        if (!window._ytLoaded || !playerRef.current) return;
+        console.log("Player onSnapshot", st);
+        if (st.videoId) {
+          console.log("Player onSnapshot cueVideoById", st.videoId);
+          playerRef.current?.cueVideoById(st.videoId);
+        }
+        const pos = st.isPlaying
+          ? st.position + ((Date.now() - st.stampMs) / 1000) * (st.rate ?? 1)
+          : st.position;
+        console.log("Player onSnapshot correct", pos);
+        correct(pos);
 
-      if (st.isPlaying) {
-        playerRef.current?.playVideo();
-      } else {
-        playerRef.current?.pauseVideo();
-      }
+        if (st.isPlaying) {
+          ensurePlayWithMuteFallback();
+        } else {
+          playerRef.current?.pauseVideo();
+        }
+      }, 1000);
     };
 
     const onSetVideo = ({ videoId }: any) => {
@@ -141,6 +151,23 @@ export default function Player({
     }
   }
 
+  function ensurePlayWithMuteFallback() {
+    console.log("ensurePlayWithMuteFallback");
+    playerRef.current?.playVideo();
+    setTimeout(() => {
+      if (
+        window.YT &&
+        playerRef.current &&
+        playerRef.current?.getPlayerState() !== window.YT.PlayerState.PLAYING
+      ) {
+        playerRef.current?.mute();
+        playerRef.current?.playVideo();
+      }
+    }, 100);
+  }
+
   // Expose helpers through data-attrs if you ever need them
-  return <div ref={mountRef} className="absolute inset-0" />;
+  return (
+    <div ref={mountRef} className="absolute inset-0" suppressHydrationWarning />
+  );
 }

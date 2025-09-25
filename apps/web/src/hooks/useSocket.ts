@@ -30,11 +30,11 @@ export function useSocket(code: string, username: string) {
     s.emit("join", { code, username });
 
     // listeners
-    s.on("SNAPSHOT", (snap: Snapshot) => {
-      setLastSnapshot(snap);
-      // useful for Player later:
-      // console.log("[socket] SNAPSHOT", snap);
-    });
+    // s.on("SNAPSHOT", (snap: Snapshot) => {
+    //   setLastSnapshot(snap);
+    //   // useful for Player later:
+    //   // console.log("[socket] SNAPSHOT", snap);
+    // });
 
     // debug: see traffic
     s.on("PLAY", (p) => console.log("[socket] PLAY", p));
