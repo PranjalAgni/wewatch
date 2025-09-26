@@ -116,6 +116,8 @@ const Player = forwardRef<PlayerRef, PlayerProps>(function Player(
     const interval = setInterval(() => {
       if (window.YT?.Player && mountRef.current && !playerRef.current) {
         playerRef.current = new window.YT.Player(mountRef.current, {
+          width: 1050,
+          height: 550,
           videoId: "",
           playerVars: {
             rel: 0,
