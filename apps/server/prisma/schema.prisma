@@ -14,6 +14,17 @@ datasource db {
 }
 
 
+model Room {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  createdAt DateTime @default(now())
+  expiresAt DateTime?
+  isActive  Boolean  @default(true)
+  
+  @@index([code])
+  @@index([createdAt])
+}
+
 model Message {
   id        String   @id @default(cuid())
   code      String      
