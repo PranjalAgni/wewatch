@@ -1,60 +1,62 @@
+// Lean socket connection hook - only handles connection management
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { io, Socket } from "socket.io-client";
 
-export type Snapshot = {
-  videoId?: string;
-  isPlaying: boolean;
-  position: number;
-  rate: number;
-  stampMs: number;
-  seq: number;
-};
+interface UseSocketOptions {
+  transports?: readonly string[];
+}
 
-export function useSocket(code: string, username: string) {
+interface UseSocketReturn {
+  socket: Socket | null;
+  connected: boolean;
+}
+
+export function useSocket(url: string, options?: UseSocketOptions): UseSocketReturn {
   const socketRef = useRef<Socket | null>(null);
-  const [connected, setConnected] = useState(false);
-  const [lastSnapshot, setLastSnapshot] = useState<Snapshot | null>(null);
+  const [connected, setConnected] = useState<boolean>(false);
+
+  // Create stable reference for transports array to prevent unnecessary re-connections
+  const transports = useMemo(() => 
+    options?.transports ? [...options.transports] : ["websocket"], 
+    [options?.transports]
+  );
 
   useEffect(() => {
-    if (!code) return;
+    if (!url) {
+      return;
+    }
 
-    const url = process.env.NEXT_PUBLIC_SERVER_URL!;
-    const s = io(url, { transports: ["websocket"] });
-    socketRef.current = s;
+    const socket: Socket = io(url, {
+      transports,
+      timeout: 5000, // 5 second connection timeout
+    });
+    
+    socketRef.current = socket;
 
-    s.on("connect", () => setConnected(true));
-    s.on("disconnect", () => setConnected(false));
-
-    // join room
-    s.emit("join", { code, username });
-
-    // listeners
-    s.on("SNAPSHOT", (snap: Snapshot) => {
-      setLastSnapshot(snap);
-      // useful for Player later:
-      // console.log("[socket] SNAPSHOT", snap);
+    socket.on("connect", () => {
+      setConnected(true);
     });
 
-    // debug: see traffic
-    s.on("PLAY", (p) => console.log("[socket] PLAY", p));
-    s.on("PAUSE", (p) => console.log("[socket] PAUSE", p));
-    s.on("SEEK", (p) => console.log("[socket] SEEK", p));
-    s.on("SET_VIDEO", (p) => console.log("[socket] SET_VIDEO", p));
-    s.on("CHAT", (m) => console.log("[socket] CHAT", m));
-    s.on("PRESENCE", (p) => console.log("[socket] PRESENCE", p));
+    socket.on("disconnect", (reason: string) => {
+      console.log("Disconnected:", reason);
+      setConnected(false);
+    });
+
+    socket.on("connect_error", (error: Error) => {
+      console.error("Connection error:", error);
+      setConnected(false);
+    });
 
     return () => {
-      s.off("SNAPSHOT");
-      s.off("PLAY");
-      s.off("PAUSE");
-      s.off("SEEK");
-      s.off("SET_VIDEO");
-      s.off("CHAT");
-      s.off("PRESENCE");
-      s.disconnect();
+      socket.disconnect();
+      socketRef.current = null;
+      setConnected(false);
     };
-  }, [code, username]);
+  }, [url, transports]);
 
-  return { socketRef, connected, lastSnapshot };
+  return { 
+    socket: socketRef.current, 
+    connected
+  };
 }
