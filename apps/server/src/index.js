@@ -1,6 +1,9 @@
 import "dotenv/config";
 import { createServer } from "http";
 import { Server } from "socket.io";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
 
 const PORT = Number(process.env.PORT || 3001);
 const allow = (process.env.CORS_ORIGIN || "")
@@ -44,13 +47,13 @@ const now = () => Date.now();
 io.on("connection", (socket) => {
   socket.on("join", ({ code, username }) => {
     if (!code) return;
-    socket.data.username = username || "Guest";
+    socket.data.username = username || "Guest" + Date.now();
     socket.join(code);
 
     if (!rooms.has(code)) {
       rooms.set(code, {
         videoId: "",
-        isPlaying: false,
+        playerState: -1, // UNSTARTED
         position: 0,
         rate: 1,
         stampMs: now(),
@@ -69,14 +72,17 @@ io.on("connection", (socket) => {
     const s = rooms.get(code);
     if (!s) return;
     const t = now();
-    if (type === "SET_VIDEO") s.videoId = payload.videoId;
+    if (type === "SET_VIDEO") {
+      s.videoId = payload.videoId;
+      s.playerState = 5; // CUED
+    }
     if (type === "PLAY") {
-      s.isPlaying = true;
+      s.playerState = 1; // PLAYING
       s.position = payload.position;
       s.stampMs = t;
     }
     if (type === "PAUSE") {
-      s.isPlaying = false;
+      s.playerState = 2; // PAUSED
       s.position = payload.position;
       s.stampMs = t;
     }
@@ -89,12 +95,52 @@ io.on("connection", (socket) => {
       s.stampMs = t;
     }
     s.seq = (s.seq || 0) + 1;
+    // Emit to ALL clients in the room (including sender)
     io.to(code).emit(type, { ...payload, at: t, seq: s.seq });
   });
 
-  socket.on("chat", ({ code, message }) => {
-    io.to(code).emit("CHAT", { ...message, at: now() });
+
+  socket.on("chat", async ({ code, message }) => {
+    if (!code || !message?.content) return;
+  
+    try {
+      const saved = await prisma.message.create({
+        data: {
+          code,
+          username: message.username || socket.data.username || "Guest",
+          content: message.content,
+          replyToId: message.replyToId || null, // ✅ Now storing replyToId
+        },
+      });
+  
+      io.to(code).emit("CHAT", {
+        id: saved.id,
+        content: saved.content,
+        username: saved.username,
+        createdAt: saved.createdAt,
+        replyToId: saved.replyToId, // ✅ Now sending replyToId back to clients
+      });
+    } catch (error) {
+      console.error("Failed to save chat message:", error);
+    }
   });
+
+  socket.on("GET_CHATS", async ({ code }) => {
+    if (!code) return;
+  
+    try {
+      const messages = await prisma.message.findMany({
+        where: { code },
+        orderBy: { createdAt: "asc" },
+        take: 50, // limit to last 50 messages
+      });
+  
+      socket.emit("CHAT_HISTORY", messages);
+    } catch (error) {
+      console.error("Failed to fetch chat history:", error);
+    }
+  });
+
 
   socket.on("disconnecting", () => {
     for (const room of socket.rooms) {
