@@ -49,7 +49,7 @@ export class DatabaseService {
     });
   }
 
-  async getMessageHistory(code, limit = 50) {
+  async getMessageHistory(code, limit = 1500) {
     return await prisma.message.findMany({
       where: { code },
       orderBy: { createdAt: "asc" },
