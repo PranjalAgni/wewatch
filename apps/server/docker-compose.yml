@@ -12,7 +12,37 @@ services:
       PORT: 4000
       DATABASE_URL: ${DATABASE_URL}
       CORS_ORIGIN: ${CORS_ORIGIN}
-    ports:
-      - "4000:4000"
+    networks:
+      - wewatch-network
     env_file:
       - .env
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: wewatch-caddy
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - wewatch-network
+    depends_on:
+      - server
+    env_file:
+      - .env
+
+volumes:
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local
+
+networks:
+  wewatch-network:
+    driver: bridge

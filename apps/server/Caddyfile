@@ -1,0 +1,32 @@
+lightsail.crossfitcommune.com {
+    # Reverse proxy to Node.js server
+    reverse_proxy server:4000
+    
+    # Enable compression
+    encode gzip
+    
+    # Security headers
+    header {
+        # Enable HSTS
+        Strict-Transport-Security max-age=31536000;
+        # Prevent MIME type sniffing
+        X-Content-Type-Options nosniff
+        # Enable XSS protection
+        X-XSS-Protection "1; mode=block"
+        # Prevent clickjacking
+        X-Frame-Options DENY
+        # Remove server info
+        -Server
+    }
+    
+    # Health check endpoint
+    handle /health {
+        respond "OK" 200
+    }
+    
+    # Logging
+    log {
+        output stdout
+        format console
+    }
+}
