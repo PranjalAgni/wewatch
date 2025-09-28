@@ -197,14 +197,6 @@ export default function RoomPage() {
     [messages]
   );
 
-  function sendTestChat(): void {
-    if (!socket || !code || !username) {
-      return;
-    }
-
-    sendMessage("Hello from " + username + " (test)");
-  }
-
   function submitVideo(e: React.FormEvent): void {
     e.preventDefault();
 
@@ -278,13 +270,6 @@ export default function RoomPage() {
                   </>
                 )}
               </div>
-              <button
-                onClick={sendTestChat}
-                disabled={!username}
-                className="inline-flex items-center rounded-lg px-3 py-2 text-sm font-medium border border-gray-700 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Send test chat
-              </button>
             </div>
 
             <div className="relative w-full pt-[56.25%] bg-black rounded-xl overflow-hidden shadow">
