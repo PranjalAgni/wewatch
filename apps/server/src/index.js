@@ -11,7 +11,7 @@ import { errorHandler, requestLogger, notFoundHandler } from "./middleware/error
 import databaseService from "./services/database.js";
 
 // Configuration
-const PORT = Number(process.env.PORT || 3001);
+const PORT = Number(process.env.PORT || 4000);
 const corsOrigins = (process.env.CORS_ORIGIN || "")
   .split(",")
   .map((s) => s.trim())
