@@ -10,6 +10,7 @@ import { PlayerState } from "@/types/video";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
+import EmojiPickerComponent from "@/components/EmojiPicker";
 
 // Helper function to get readable state name
 function getPlayerStateName(state: PlayerState): string {
@@ -100,6 +101,7 @@ export default function RoomPage() {
     content: string;
   } | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const chatInputRef = useRef<HTMLInputElement>(null);
 
   // Hover state for reply buttons
   const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
@@ -312,6 +314,30 @@ export default function RoomPage() {
   const cancelReply = useCallback(() => {
     setReplyingTo(null);
   }, []);
+
+  // Handle emoji insertion
+  const handleEmojiSelect = useCallback((emoji: string) => {
+    if (chatInputRef.current) {
+      const input = chatInputRef.current;
+      const start = input.selectionStart || 0;
+      const end = input.selectionEnd || 0;
+      
+      // Insert emoji at cursor position
+      const newValue = chatInput.slice(0, start) + emoji + chatInput.slice(end);
+      setChatInput(newValue);
+      
+      // Set cursor position after the inserted emoji
+      const newCursorPos = start + emoji.length;
+      
+      // Focus input and set cursor position
+      setTimeout(() => {
+        if (input) {
+          input.focus();
+          input.setSelectionRange(newCursorPos, newCursorPos);
+        }
+      }, 0);
+    }
+  }, [chatInput]);
 
   // Find original message for reply context
   const findOriginalMessage = useCallback(
@@ -697,17 +723,24 @@ export default function RoomPage() {
                 onSubmit={handleChatSubmit}
                 className="p-3 flex gap-2 border-t border-gray-800"
               >
-                <input
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  className="rounded-lg border-gray-700 bg-gray-800 text-gray-100 placeholder-gray-400 focus:border-gray-500 focus:ring-gray-500 flex-1"
-                  placeholder={
-                    replyingTo
-                      ? `Your reply to ${replyingTo.username}...`
-                      : "Type a message…"
-                  }
-                  disabled={!connected || !username}
-                />
+                <div className="flex-1 flex gap-2">
+                  <input
+                    ref={chatInputRef}
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    className="rounded-lg border-gray-700 bg-gray-800 text-gray-100 placeholder-gray-400 focus:border-gray-500 focus:ring-gray-500 flex-1"
+                    placeholder={
+                      replyingTo
+                        ? `Your reply to ${replyingTo.username}...`
+                        : "Type a message…"
+                    }
+                    disabled={!connected || !username}
+                  />
+                  <EmojiPickerComponent 
+                    onEmojiSelect={handleEmojiSelect}
+                    disabled={!connected || !username}
+                  />
+                </div>
                 <button
                   type="submit"
                   disabled={!connected || !username || !chatInput.trim()}
