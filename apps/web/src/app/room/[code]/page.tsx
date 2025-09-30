@@ -8,6 +8,8 @@ import UsernameModal from "@/components/UsernameModal";
 import { parseYouTubeId } from "@/lib/youtube";
 import { PlayerState } from "@/types/video";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import confetti from "canvas-confetti";
+import { toast } from "sonner";
 
 // Helper function to get readable state name
 function getPlayerStateName(state: PlayerState): string {
@@ -34,6 +36,47 @@ export default function RoomPage() {
   const [url, setUrl] = useState<string>("");
   const playerRef = useRef<PlayerRef>(null);
   const hasJoinedRef = useRef<boolean>(false);
+
+  // Helper function for massive confetti explosion
+  const triggerMuskConfetti = useCallback(() => {
+    // First massive burst from center
+    confetti({
+      particleCount: 300,
+      spread: 160,
+      origin: { y: 0.6 },
+      colors: ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FECA57']
+    });
+    
+    // Left side explosion
+    setTimeout(() => {
+      confetti({
+        particleCount: 200,
+        spread: 140,
+        origin: { x: 0.1, y: 0.5 },
+        colors: ['#FF9FF3', '#54A0FF', '#5F27CD', '#00D2D3', '#FF9F43', '#10AC84']
+      });
+    }, 200);
+    
+    // Right side explosion  
+    setTimeout(() => {
+      confetti({
+        particleCount: 200,
+        spread: 140,
+        origin: { x: 0.9, y: 0.5 },
+        colors: ['#FFA726', '#EC407A', '#AB47BC', '#42A5F5', '#26C6DA', '#66BB6A']
+      });
+    }, 400);
+    
+    // Final massive center burst
+    setTimeout(() => {
+      confetti({
+        particleCount: 250,
+        spread: 180,
+        origin: { y: 0.3 },
+        colors: ['#FFD700', '#FF1744', '#00E676', '#2196F3', '#FF9800', '#E91E63']
+      });
+    }, 600);
+  }, []);
 
   // Username state - only set after user submits via modal
   const [username, setUsername] = useState<string>("");
@@ -89,13 +132,26 @@ export default function RoomPage() {
       // Get list of connected users
       socket.emit("GET_USERS", { code });
       hasJoinedRef.current = true;
+      
+      // Trigger confetti for self if username contains "musk"
+      if (username.toLowerCase().includes("musk")) {
+        // Small delay to let the UI settle, then trigger massive confetti
+        setTimeout(() => {
+          triggerMuskConfetti();
+          // Show welcome toast for self
+          toast.success(`Hello hello, ${username}! Looking good! 😏`, {
+            description: "The room just got a whole lot more interesting 🫰🏻🫰🏻🫰🏻",
+            duration: 4000,
+          });
+        }, 500);
+      }
     }
 
     // Reset join flag when disconnected
     if (!connected) {
       hasJoinedRef.current = false;
     }
-  }, [socket, connected, code, username]);
+  }, [socket, connected, code, username, triggerMuskConfetti]);
 
   // Socket listeners for users list
   useEffect(() => {
@@ -105,10 +161,29 @@ export default function RoomPage() {
       username: string;
     }) => {
       if (data.type === "JOIN") {
-        setConnectedUsers((prev) => [
-          ...prev,
-          { id: Date.now().toString(), username: data.username },
-        ]);
+        setConnectedUsers((prev) => {
+          // Add the new user
+          const updatedUsers = [
+            ...prev,
+            { id: Date.now().toString(), username: data.username },
+          ];
+          
+          // Ensure current user is always at the beginning of the list
+          const currentUserExists = updatedUsers.some(user => user.username === username);
+          if (!currentUserExists && username) {
+            updatedUsers.unshift({ 
+              id: "self", 
+              username: username 
+            });
+          }
+          
+          return updatedUsers;
+        });
+        
+        // Musk easter egg - trigger MASSIVE confetti if username contains "musk"
+        if (data.username.toLowerCase().includes("musk")) {
+          triggerMuskConfetti();
+        }
       } else {
         setConnectedUsers((prev) =>
           prev.filter((user) => user.username !== data.username)
@@ -119,7 +194,18 @@ export default function RoomPage() {
     const handleUsersList = (data: {
       users: Array<{ id: string; username: string }>;
     }) => {
-      setConnectedUsers(data.users);
+      // Include current user in the list if not already present
+      const allUsers = [...data.users];
+      const currentUserExists = allUsers.some(user => user.username === username);
+      
+      if (!currentUserExists && username) {
+        allUsers.unshift({ 
+          id: "self", 
+          username: username 
+        });
+      }
+      
+      setConnectedUsers(allUsers);
     };
 
     socket.on("PRESENCE", handlePresence);
@@ -129,7 +215,7 @@ export default function RoomPage() {
       socket.off("PRESENCE", handlePresence);
       socket.off("USERS_LIST", handleUsersList);
     };
-  }, [socket]);
+  }, [socket, username, triggerMuskConfetti]);
 
   // Socket listeners for chat events
   useEffect(() => {
@@ -349,18 +435,31 @@ export default function RoomPage() {
                 {connectedUsers.length} watching
               </div>
               <div className="flex items-center gap-3 flex-wrap">
-                {connectedUsers.map((user) => (
-                  <div key={user.id} className="flex flex-col items-center gap-1">
-                    <Avatar className="border-2 border-gray-600 w-10 h-10">
-                      <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm font-semibold">
-                        {user.username.substring(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="text-xs text-gray-300 max-w-[60px] truncate text-center" title={user.username}>
-                      {user.username}
-                    </span>
-                  </div>
-                ))}
+                {connectedUsers.map((user) => {
+                  const isCurrentUser = user.username === username;
+                  return (
+                    <div key={user.id} className="flex flex-col items-center gap-1">
+                      <Avatar className={`border-2 w-10 h-10 ${
+                        isCurrentUser 
+                          ? "border-green-400 ring-2 ring-green-400/30" 
+                          : "border-gray-600"
+                      }`}>
+                        <AvatarFallback className={`text-white text-sm font-semibold ${
+                          isCurrentUser 
+                            ? "bg-gradient-to-br from-green-500 to-emerald-600" 
+                            : "bg-gradient-to-br from-blue-500 to-purple-600"
+                        }`}>
+                          {user.username.substring(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className={`text-xs max-w-[60px] truncate text-center ${
+                        isCurrentUser ? "text-green-300 font-medium" : "text-gray-300"
+                      }`} title={user.username}>
+                        {isCurrentUser ? "You" : user.username}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
