@@ -105,6 +105,23 @@ export function setupSocketHandlers(io) {
       }
     });
 
+    socket.on("GET_USERS", ({ code }) => {
+      const connectedUsers = [];
+      const sockets = io.sockets.adapter.rooms.get(code);
+      if (sockets) {
+        for (const socketId of sockets) {
+          const socket = io.sockets.sockets.get(socketId);
+          if (socket?.data?.username) {
+            connectedUsers.push({
+              id: socketId,
+              username: socket.data.username
+            });
+          }
+        }
+      }
+      socket.emit("USERS_LIST", { users: connectedUsers });
+    });
+
     // Handle user disconnection
     socket.on("disconnecting", () => {
       for (const room of socket.rooms) {

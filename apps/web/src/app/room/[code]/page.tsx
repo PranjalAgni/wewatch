@@ -7,6 +7,7 @@ import ClientOnly from "@/components/ClientOnly";
 import UsernameModal from "@/components/UsernameModal";
 import { parseYouTubeId } from "@/lib/youtube";
 import { PlayerState } from "@/types/video";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 // Helper function to get readable state name
 function getPlayerStateName(state: PlayerState): string {
@@ -37,8 +38,9 @@ export default function RoomPage() {
   // Username state - only set after user submits via modal
   const [username, setUsername] = useState<string>("");
   const [isUsernameModalOpen, setIsUsernameModalOpen] = useState<boolean>(true);
-
-  // Chat state
+  const [connectedUsers, setConnectedUsers] = useState<
+    Array<{ id: string; username: string }>
+  >([]);
   const [messages, setMessages] = useState<
     Array<{
       id: string;
@@ -84,6 +86,8 @@ export default function RoomPage() {
       socket.emit("join", { code, username });
       // Load chat history when joining room
       socket.emit("GET_CHATS", { code });
+      // Get list of connected users
+      socket.emit("GET_USERS", { code });
       hasJoinedRef.current = true;
     }
 
@@ -92,6 +96,40 @@ export default function RoomPage() {
       hasJoinedRef.current = false;
     }
   }, [socket, connected, code, username]);
+
+  // Socket listeners for users list
+  useEffect(() => {
+    if (!socket) return;
+    const handlePresence = (data: {
+      type: "JOIN" | "LEAVE";
+      username: string;
+    }) => {
+      if (data.type === "JOIN") {
+        setConnectedUsers((prev) => [
+          ...prev,
+          { id: Date.now().toString(), username: data.username },
+        ]);
+      } else {
+        setConnectedUsers((prev) =>
+          prev.filter((user) => user.username !== data.username)
+        );
+      }
+    };
+
+    const handleUsersList = (data: {
+      users: Array<{ id: string; username: string }>;
+    }) => {
+      setConnectedUsers(data.users);
+    };
+
+    socket.on("PRESENCE", handlePresence);
+    socket.on("USERS_LIST", handleUsersList);
+
+    return () => {
+      socket.off("PRESENCE", handlePresence);
+      socket.off("USERS_LIST", handleUsersList);
+    };
+  }, [socket]);
 
   // Socket listeners for chat events
   useEffect(() => {
@@ -305,6 +343,26 @@ export default function RoomPage() {
                 ↺ Restart
               </button>
             </form>
+
+            <div className="mb-4">
+              <div className="text-sm text-gray-400 mb-3">
+                {connectedUsers.length} watching
+              </div>
+              <div className="flex items-center gap-3 flex-wrap">
+                {connectedUsers.map((user) => (
+                  <div key={user.id} className="flex flex-col items-center gap-1">
+                    <Avatar className="border-2 border-gray-600 w-10 h-10">
+                      <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm font-semibold">
+                        {user.username.substring(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-xs text-gray-300 max-w-[60px] truncate text-center" title={user.username}>
+                      {user.username}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
 
             {playerRef.current?.videoState && (
               <div className="mt-3 text-xs text-gray-400">
