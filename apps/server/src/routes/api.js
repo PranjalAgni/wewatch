@@ -6,7 +6,7 @@ const router = Router();
 
 // Health check endpoint
 router.get("/health", (req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+  res.json({ status: "ok", timestamp: new Date().toISOString(), date: Date.now() });
 });
 
 // Room creation endpoint
