@@ -21,6 +21,7 @@
 
 - Node.js 18+ 
 - npm or yarn
+- prisma
 
 ### Installation
 
