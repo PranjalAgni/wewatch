@@ -128,11 +128,8 @@ export default function RoomPage() {
   // Join room when connected (only once per connection)
   useEffect(() => {
     if (socket && connected && code && username && !hasJoinedRef.current) {
+      // The server replies with SNAPSHOT, USERS_LIST and CHAT_HISTORY
       socket.emit("join", { code, username });
-      // Load chat history when joining room
-      socket.emit("GET_CHATS", { code });
-      // Get list of connected users
-      socket.emit("GET_USERS", { code });
       hasJoinedRef.current = true;
       
       // Trigger confetti for self if username contains "musk"

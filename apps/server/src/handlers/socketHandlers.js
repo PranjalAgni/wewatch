@@ -1,8 +1,26 @@
 import databaseService from "../services/database.js";
 import roomManager from "../services/roomManager.js";
 
+const CONTROL_TYPES = new Set(["SET_VIDEO", "PLAY", "PAUSE", "SEEK", "RATE"]);
+
+// Users currently connected to a room, as { id, username }.
+function listRoomUsers(io, code) {
+  const users = [];
+  for (const socketId of io.sockets.adapter.rooms.get(code) ?? []) {
+    const member = io.sockets.sockets.get(socketId);
+    if (member?.data?.roomCode === code) {
+      users.push({ id: socketId, username: member.data.username });
+    }
+  }
+  return users;
+}
+
 export function setupSocketHandlers(io) {
   io.on("connection", (socket) => {
+    // A socket may act on a room only after a successful "join" for that room.
+    const isMember = (code) => Boolean(code) && socket.data.roomCode === code;
+    const rejectNonMember = () =>
+      socket.emit("ERROR", { message: "Join the room first" });
     console.log(`Socket connected: ${socket.id}`);
 
     // Handle room joining
@@ -21,14 +39,24 @@ export function setupSocketHandlers(io) {
           return;
         }
 
+        // A socket belongs to one room at a time
+        const previous = socket.data.roomCode;
+        if (previous && previous !== code) {
+          socket.leave(previous);
+          socket.to(previous).emit("PRESENCE", { type: "LEAVE", username: socket.data.username });
+        }
+
         // Room is valid, proceed with join
         socket.data.username = username || "Guest" + Date.now();
+        socket.data.roomCode = code;
         socket.join(code);
 
-        // Initialize room state if needed and send snapshot
+        // Send the joiner everything it needs, after membership is established
         const roomState = roomManager.initializeRoom(code);
         socket.emit("SNAPSHOT", roomState);
-        
+        socket.emit("USERS_LIST", { users: listRoomUsers(io, code) });
+        socket.emit("CHAT_HISTORY", await databaseService.getMessageHistory(code));
+
         // Notify other users in the room
         socket.to(code).emit("PRESENCE", { 
           type: "JOIN", 
@@ -43,7 +71,9 @@ export function setupSocketHandlers(io) {
     });
 
     // Handle video control events
-    socket.on("control", ({ code, type, payload }) => {
+    socket.on("control", ({ code, type, payload } = {}) => {
+      if (!isMember(code)) return rejectNonMember();
+      if (!CONTROL_TYPES.has(type)) return;
       try {
         const updatedPayload = roomManager.updateRoomState(code, type, payload);
         console.log("updatedPayload", updatedPayload);
@@ -59,13 +89,15 @@ export function setupSocketHandlers(io) {
     });
 
     // Handle chat messages
-    socket.on("chat", async ({ code, message }) => {
+    socket.on("chat", async ({ code, message } = {}) => {
+      if (!isMember(code)) return rejectNonMember();
       try {
-        if (!code || !message?.content) {
+        if (!message?.content) {
           return;
         }
 
-        const username = message.username || socket.data.username || "Guest";
+        // Always the name the sender joined with, never a client-supplied one
+        const username = socket.data.username;
         const saved = await databaseService.createMessage(
           code,
           username,
@@ -90,12 +122,9 @@ export function setupSocketHandlers(io) {
     });
 
     // Handle chat history requests
-    socket.on("GET_CHATS", async ({ code }) => {
+    socket.on("GET_CHATS", async ({ code } = {}) => {
+      if (!isMember(code)) return rejectNonMember();
       try {
-        if (!code) {
-          return;
-        }
-
         const messages = await databaseService.getMessageHistory(code);
         socket.emit("CHAT_HISTORY", messages);
         console.log(`Sent chat history for room ${code} to ${socket.id}`);
@@ -105,21 +134,9 @@ export function setupSocketHandlers(io) {
       }
     });
 
-    socket.on("GET_USERS", ({ code }) => {
-      const connectedUsers = [];
-      const sockets = io.sockets.adapter.rooms.get(code);
-      if (sockets) {
-        for (const socketId of sockets) {
-          const socket = io.sockets.sockets.get(socketId);
-          if (socket?.data?.username) {
-            connectedUsers.push({
-              id: socketId,
-              username: socket.data.username
-            });
-          }
-        }
-      }
-      socket.emit("USERS_LIST", { users: connectedUsers });
+    socket.on("GET_USERS", ({ code } = {}) => {
+      if (!isMember(code)) return rejectNonMember();
+      socket.emit("USERS_LIST", { users: listRoomUsers(io, code) });
     });
 
     // Handle user disconnection

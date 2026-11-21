@@ -11,8 +11,8 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "dev:web": "turbo run dev --filter=web",
-    "db:migrate": "npm run prisma migrate dev --workspace web",
-    "db:push": "npm run prisma db push --workspace web"
+    "db:migrate": "npm exec --workspace server -- prisma migrate dev",
+    "db:push": "npm exec --workspace server -- prisma db push"
   },
   "keywords": [],
   "author": "",

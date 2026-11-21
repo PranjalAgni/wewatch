@@ -45,6 +45,8 @@ const Player = forwardRef<PlayerRef, PlayerProps>(function Player(
   ref
 ) {
   const [videoState, setVideoState] = useState<VideoState | null>(null);
+  // YouTube player methods (loadVideoById, seekTo, ...) exist only after onReady
+  const [playerReady, setPlayerReady] = useState(false);
   const mountRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<any>(null);
   const videoManagerRef = useRef<VideoManager | null>(null);
@@ -126,9 +128,7 @@ const Player = forwardRef<PlayerRef, PlayerProps>(function Player(
           },
           events: {
             onStateChange: handleYouTubeStateChange,
-            onReady: () => {
-              // YouTube Player Ready
-            },
+            onReady: () => setPlayerReady(true),
             onError: (event: unknown) => {
               console.error("YouTube Player Error:", event);
             },
@@ -230,6 +230,7 @@ const Player = forwardRef<PlayerRef, PlayerProps>(function Player(
     setTimeout(() => {
       if (
         !connected ||
+        !playerReady ||
         !videoState ||
         !playerRef.current ||
         !videoState.videoId
@@ -284,7 +285,7 @@ const Player = forwardRef<PlayerRef, PlayerProps>(function Player(
         isUpdatingFromSocket.current = false;
       }, 100);
     }, 500);
-  }, [videoState, connected]);
+  }, [videoState, connected, playerReady]);
 
   // Helper function to ensure video plays (with mute fallback for autoplay policies)
   const ensurePlayWithMuteFallback = (): void => {
