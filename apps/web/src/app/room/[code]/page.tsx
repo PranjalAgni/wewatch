@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
 import EmojiPickerComponent from "@/components/EmojiPicker";
+import Clock from "@/components/Clock";
 
 // Helper function to get readable state name
 function getPlayerStateName(state: PlayerState): string {
@@ -417,6 +418,7 @@ export default function RoomPage() {
                   </>
                 )}
               </div>
+              <Clock />
             </div>
 
             <div className="relative w-full pt-[56.25%] bg-black rounded-xl overflow-hidden shadow">
