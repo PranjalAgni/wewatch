@@ -1,12 +1,28 @@
 import { Router } from "express";
 import databaseService from "../services/database.js";
 import roomManager from "../services/roomManager.js";
+import { searchVideos, YouTubeSearchError } from "../services/youtube.js";
 
 const router = Router();
 
 // Health check endpoint
 router.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString(), date: Date.now().toString() });
+});
+
+// YouTube video search: GET /api/youtube/search?q=...
+router.get("/youtube/search", async (req, res) => {
+  const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+  if (q.length < 2 || q.length > 100) {
+    return res.status(400).json({ error: "Query must be 2-100 characters" });
+  }
+  try {
+    res.json({ results: await searchVideos(q) });
+  } catch (error) {
+    const status = error instanceof YouTubeSearchError ? error.statusCode : 500;
+    if (status === 500) console.error("YouTube search error:", error);
+    res.status(status).json({ error: error.message });
+  }
 });
 
 // Room creation endpoint

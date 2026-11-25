@@ -48,10 +48,22 @@ class RoomManager {
     const timestamp = this.now();
 
     switch (type) {
-      case "SET_VIDEO":
+      case "SET_VIDEO": {
+        if (!/^[A-Za-z0-9_-]{11}$/.test(payload?.videoId ?? "")) return null;
+        // A new video always starts from the beginning and plays for everyone.
         state.videoId = payload.videoId;
-        state.playerState = 5; // CUED
-        break;
+        state.playerState = 1; // PLAYING
+        state.position = 0;
+        state.stampMs = timestamp;
+        state.seq = (state.seq || 0) + 1;
+        return {
+          videoId: state.videoId,
+          playerState: state.playerState,
+          position: 0,
+          at: timestamp,
+          seq: state.seq,
+        };
+      }
       case "PLAY":
         state.playerState = 1; // PLAYING
         state.position = payload.position;

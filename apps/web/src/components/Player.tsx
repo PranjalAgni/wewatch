@@ -148,10 +148,14 @@ const Player = forwardRef<PlayerRef, PlayerProps>(function Player(
   }, []);
 
   const handleSetVideo = useCallback(
-    ({ videoId }: SocketVideoEvents["SET_VIDEO"]): void => {
+    ({ videoId, playerState, position, at }: SocketVideoEvents["SET_VIDEO"]): void => {
+      // A new video restarts from `position` (0) in the given state for everyone.
       setVideoState((prev) => ({
         ...(prev ?? createInitialVideoState()),
         videoId,
+        playerState,
+        position,
+        stampMs: at,
       }));
     },
     []

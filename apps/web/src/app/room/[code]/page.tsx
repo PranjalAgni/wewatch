@@ -12,6 +12,7 @@ import confetti from "canvas-confetti";
 import { toast } from "sonner";
 import EmojiPickerComponent from "@/components/EmojiPicker";
 import Clock from "@/components/Clock";
+import YouTubeSearch from "@/components/YouTubeSearch";
 
 // Helper function to get readable state name
 function getPlayerStateName(state: PlayerState): string {
@@ -345,20 +346,26 @@ export default function RoomPage() {
     [messages]
   );
 
+  // Ask the server to switch everyone to this video, starting from 0.
+  function setVideo(videoId: string): void {
+    if (!socket || !code) {
+      return;
+    }
+    socket.emit("control", {
+      code,
+      type: "SET_VIDEO",
+      payload: { videoId },
+    });
+  }
+
   function submitVideo(e: React.FormEvent): void {
     e.preventDefault();
 
     const id = parseYouTubeId(url);
-    if (!id || !socket || !code) {
+    if (!id) {
       return;
     }
-
-    // Emit socket event to server, which will broadcast to all clients
-    socket.emit("control", {
-      code,
-      type: "SET_VIDEO",
-      payload: { videoId: id },
-    });
+    setVideo(id);
     setUrl("");
   }
 
@@ -431,7 +438,9 @@ export default function RoomPage() {
               />
             </div>
 
-            <form onSubmit={submitVideo} className="mt-3 flex gap-2">
+            <YouTubeSearch onSelect={setVideo} disabled={!socket || !connected} />
+
+            <form onSubmit={submitVideo} className="mt-2 flex gap-2">
               <input
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}

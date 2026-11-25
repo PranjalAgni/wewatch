@@ -44,6 +44,10 @@
    ```env
    PORT=3001
    CORS_ORIGIN=http://localhost:3000
+   # Optional: enables the YouTube search box in rooms.
+   # Create a key with "YouTube Data API v3" enabled at
+   # https://console.cloud.google.com/apis/credentials
+   YOUTUBE_API_KEY=your-api-key
    ```
    
    **`apps/web/.env.local`**

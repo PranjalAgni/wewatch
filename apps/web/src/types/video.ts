@@ -31,7 +31,7 @@ export interface SocketControlEvent {
 
 export interface SocketVideoEvents {
   SNAPSHOT: VideoState;
-  SET_VIDEO: { videoId: string };
+  SET_VIDEO: { videoId: string; playerState: PlayerState; position: number; at: number };
   PLAY: { position: number; at: number };
   PAUSE: { position: number };
   SEEK: { position: number };
